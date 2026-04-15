@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateGlobalsCss } from '@/lib/export-css';
-import { exportConfigJson } from '@/lib/export-json';
+import { generateExportJson } from '@/lib/export-json';
 import { defaultConfig } from '@/data/defaults';
 
 describe('export-css', () => {
@@ -31,13 +31,13 @@ describe('export-css', () => {
 
 describe('export-json', () => {
   it('returns valid JSON string', () => {
-    const json = exportConfigJson(defaultConfig);
+    const json = generateExportJson(defaultConfig);
     const parsed = JSON.parse(json);
     expect(parsed.meta.name).toBe(defaultConfig.meta.name);
   });
 
   it('round-trips correctly', () => {
-    const json = exportConfigJson(defaultConfig);
+    const json = generateExportJson(defaultConfig);
     const parsed = JSON.parse(json);
     expect(parsed).toEqual(defaultConfig);
   });

@@ -125,11 +125,82 @@ const componentTokensSchema = z.object({
   overlay: overlayTokensSchema,
 });
 
-export const tokenConfigSchema = z.object({
+/**
+ * Base schema — validates structure and types.
+ * Use `tokenConfigSchema` (with refinements) for import/hydration.
+ */
+const tokenConfigBaseSchema = z.object({
   meta: tokenMetaSchema,
   primitives: primitivesSchema,
   semantic: semanticTokensSchema,
   components: componentTokensSchema,
+});
+
+/**
+ * Full schema with cross-field refinements.
+ * Validates that semantic tokens reference existing primitive color keys.
+ */
+export const tokenConfigSchema = tokenConfigBaseSchema.superRefine((config, ctx) => {
+  const colorKeys = Object.keys(config.primitives.colors);
+  const spacingKeys = Object.keys(config.primitives.spacing);
+  const radiiKeys = Object.keys(config.primitives.radii);
+  const shadowKeys = Object.keys(config.primitives.shadows);
+  const fontSizeKeys = Object.keys(config.primitives.typography.fontSizes);
+
+  // Validate semantic → primitive color references
+  for (const key of SEMANTIC_COLOR_KEYS) {
+    const token = config.semantic[key];
+    for (const mode of ['light', 'dark'] as const) {
+      if (!colorKeys.includes(token[mode])) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['semantic', key, mode],
+          message: `Semantic token "${key}.${mode}" references unknown primitive color "${token[mode]}"`,
+        });
+      }
+    }
+  }
+
+  // Validate component → primitive references for non-color fields
+  const components = config.components;
+
+  const validateRef = (
+    path: string[],
+    value: string,
+    validKeys: string[],
+    label: string,
+  ) => {
+    if (!validKeys.includes(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path,
+        message: `${path.join('.')} references unknown ${label} "${value}"`,
+      });
+    }
+  };
+
+  // Button
+  validateRef(['components', 'button', 'radius'], components.button.radius, radiiKeys, 'radius');
+  validateRef(['components', 'button', 'paddingX'], components.button.paddingX, spacingKeys, 'spacing');
+  validateRef(['components', 'button', 'paddingY'], components.button.paddingY, spacingKeys, 'spacing');
+  validateRef(['components', 'button', 'fontSize'], components.button.fontSize, fontSizeKeys, 'fontSize');
+
+  // Input
+  validateRef(['components', 'input', 'radius'], components.input.radius, radiiKeys, 'radius');
+  validateRef(['components', 'input', 'paddingX'], components.input.paddingX, spacingKeys, 'spacing');
+  validateRef(['components', 'input', 'paddingY'], components.input.paddingY, spacingKeys, 'spacing');
+  validateRef(['components', 'input', 'fontSize'], components.input.fontSize, fontSizeKeys, 'fontSize');
+
+  // Card
+  validateRef(['components', 'card', 'radius'], components.card.radius, radiiKeys, 'radius');
+  validateRef(['components', 'card', 'padding'], components.card.padding, spacingKeys, 'spacing');
+  validateRef(['components', 'card', 'shadow'], components.card.shadow, shadowKeys, 'shadow');
+
+  // Badge
+  validateRef(['components', 'badge', 'radius'], components.badge.radius, radiiKeys, 'radius');
+  validateRef(['components', 'badge', 'paddingX'], components.badge.paddingX, spacingKeys, 'spacing');
+  validateRef(['components', 'badge', 'paddingY'], components.badge.paddingY, spacingKeys, 'spacing');
+  validateRef(['components', 'badge', 'fontSize'], components.badge.fontSize, fontSizeKeys, 'fontSize');
 });
 
 export type TokenMeta = z.infer<typeof tokenMetaSchema>;
@@ -145,4 +216,4 @@ export type BadgeComponentTokens = z.infer<typeof badgeTokensSchema>;
 export type FocusRingTokens = z.infer<typeof focusRingTokensSchema>;
 export type OverlayTokens = z.infer<typeof overlayTokensSchema>;
 export type ComponentTokens = z.infer<typeof componentTokensSchema>;
-export type TokenConfig = z.infer<typeof tokenConfigSchema>;
+export type TokenConfig = z.infer<typeof tokenConfigBaseSchema>;
